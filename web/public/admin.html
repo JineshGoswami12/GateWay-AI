@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GateWay-AI | Admin Portal</title>
+  <meta name="description" content="Password-gated administration console for GateWay-AI telemetry, validation logs, AI diagnoses, webhook deliveries, and self-improving rules engine.">
+
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="header-brand">
+          <span class="brand-glyph">/</span>
+          <span class="brand-name">GateWay-AI</span>
+          <span class="brand-separator">/</span>
+          <span class="brand-env">Admin Telemetry View</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div id="admin-session-controls" class="admin-header-actions hidden">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-admin-refresh">Refresh</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-admin-clear">Clear History</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-admin-signout">Sign Out</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="app-main">
+
+      <!-- ================================================================= -->
+      <!-- VIEW 1: AUTHENTICATION FORM (DEFAULT IF NO TOKEN)                 -->
+      <!-- ================================================================= -->
+      <section id="admin-auth-view" class="admin-login-wrapper">
+        <div class="admin-auth-card">
+          <div class="admin-auth-header">
+            <h2>Admin Authentication</h2>
+            <p>Enter administrator password to inspect persistence telemetry and manage rules.</p>
+          </div>
+
+          <div id="admin-error-banner" class="admin-error-banner hidden"></div>
+
+          <form id="admin-login-form" class="console-form">
+            <div class="form-group">
+              <label for="admin-password">Password</label>
+              <input type="password" id="admin-password" class="console-input" placeholder="Enter admin password" autocomplete="current-password" required autofocus>
+            </div>
+            <div class="form-actions" style="margin-top: 8px;">
+              <button type="submit" class="btn btn-primary" id="btn-admin-login" style="width: 100%;">
+                <span>Sign In</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VIEW 2: AUTHENTICATED DASHBOARD                                   -->
+      <!-- ================================================================= -->
+      <section id="admin-dashboard-view" class="hidden">
+        <!-- 4 Summary Metric Cards -->
+        <div class="metrics-summary-grid">
+          <div class="metric-card">
+            <span class="metric-label">Total Validations</span>
+            <span class="metric-value" id="metric-total-val">0</span>
+            <span class="metric-sub">Pre-flight checks evaluated</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Local Block Rate</span>
+            <span class="metric-value text-emerald" id="metric-block-rate">0%</span>
+            <span class="metric-sub">Quota saved before network</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">AI Error Diagnoses</span>
+            <span class="metric-value text-indigo" id="metric-total-diag">0</span>
+            <span class="metric-sub">Gemini reasoning calls</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Active Rules</span>
+            <span class="metric-value text-amber" id="metric-total-rules">7</span>
+            <span class="metric-sub" id="metric-rules-sub">Built-in & AI Learned</span>
+          </div>
+        </div>
+
+        <!-- Historical Activity Log Table Card -->
+        <div class="console-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <span class="card-tag tag-muted">SQLite Storage</span>
+              <h2>Historical Activity Log (.gateway-ai/gateway.db)</h2>
+            </div>
+          </div>
+
+          <div class="sub-tabs">
+            <button class="sub-tab-btn active" data-subtab="val-table">Validations</button>
+            <button class="sub-tab-btn" data-subtab="diag-table">AI Diagnoses</button>
+            <button class="sub-tab-btn" data-subtab="wh-table">Webhook Deliveries</button>
+            <button class="sub-tab-btn" data-subtab="rules-table">Active Rules</button>
+          </div>
+
+          <!-- Table 1: Validations -->
+          <div id="subtab-val-table" class="subtab-view active">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Method</th>
+                    <th>Result</th>
+                    <th>Rule ID</th>
+                    <th>Origin</th>
+                    <th>Payload Preview</th>
+                    <th>Latency</th>
+                  </tr>
+                </thead>
+                <tbody id="table-validations-body">
+                  <tr><td colspan="7" class="text-center text-muted">Loading records...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Table 2: AI Diagnoses -->
+          <div id="subtab-diag-table" class="subtab-view">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Error Code</th>
+                    <th>Method</th>
+                    <th>Engine</th>
+                    <th>Root Cause Summary</th>
+                    <th>Latency</th>
+                  </tr>
+                </thead>
+                <tbody id="table-diagnoses-body">
+                  <tr><td colspan="6" class="text-center text-muted">Loading records...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Table 3: Webhooks -->
+          <div id="subtab-wh-table" class="subtab-view">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event ID</th>
+                    <th>Event Name</th>
+                    <th>Signature</th>
+                    <th>HTTP Status</th>
+                    <th>Target</th>
+                    <th>Latency</th>
+                  </tr>
+                </thead>
+                <tbody id="table-webhooks-body">
+                  <tr><td colspan="7" class="text-center text-muted">Loading records...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Table 4: Active Rules (Self-Improving Loop) -->
+          <div id="subtab-rules-table" class="subtab-view">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Rule ID</th>
+                    <th>Method</th>
+                    <th>Origin</th>
+                    <th>Target Field / Condition</th>
+                    <th>Warning Description</th>
+                  </tr>
+                </thead>
+                <tbody id="table-rules-body">
+                  <tr><td colspan="5" class="text-center text-muted">Loading active rules...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <span>GateWay-AI · Admin Telemetry View</span>
+        <span class="footer-dot">•</span>
+        <span><a href="/" style="color: var(--primary); text-decoration: none;">Return to Console &rarr;</a></span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GateWay-AI | Payment Integration Developer Console</title>
+  <meta name="description" content="Professional developer console for payment gateway integrations: Pre-flight validation engine, Gemini 2.5 Flash error translation, dual-process webhook simulation, and SQLite persistence.">
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- xterm.js CDN (Used in Guided Tour) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="header-brand">
+          <span class="brand-glyph">/</span>
+          <span class="brand-name">GateWay-AI</span>
+          <span class="brand-separator">/</span>
+          <span class="brand-env">Payment Integration Console</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="status-indicator">
+          <span class="status-pip" id="server-pip"></span>
+          <span class="status-text" id="server-status">Connecting</span>
+        </div>
+        <div class="engine-indicator">
+          <span class="engine-source" id="engine-source">AI Engine: Initializing...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="view-tabs" role="tablist">
+      <button class="tab-button active" data-tab="playground" role="tab" aria-selected="true">
+        <span>Interactive Playground</span>
+      </button>
+      <button class="tab-button" data-tab="guided-tour" role="tab" aria-selected="false">
+        <span>Guided Tour</span>
+      </button>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="app-main">
+
+      <!-- ================================================================= -->
+      <!-- TAB 1: INTERACTIVE PLAYGROUND (DEFAULT VIEW)                      -->
+      <!-- ================================================================= -->
+      <section id="tab-playground" class="view-panel active" role="tabpanel">
+        <div class="playground-grid">
+          
+          <!-- Column 1: Pre-Flight Rule Checker -->
+          <article class="console-card card-span-1">
+            <div class="card-header">
+              <div class="card-title-group">
+                <span class="card-tag tag-rose">Pre-Flight Engine</span>
+                <h2>Outbound Validation Check</h2>
+              </div>
+              <span class="latency-badge" id="pf-latency">&lt; 1ms target</span>
+            </div>
+            <p class="card-desc">Intercept and validate outbound payment payloads locally. Catches schema errors and misconfigured subunits before network dispatch.</p>
+
+            <form id="preflight-form" class="console-form">
+              <div class="form-group">
+                <label for="pf-method">API Method</label>
+                <select id="pf-method" class="console-select">
+                  <option value="orders.create">orders.create (Order Creation)</option>
+                  <option value="payments.capture">payments.capture (Payment Capture)</option>
+                </select>
+              </div>
+
+              <div class="preset-row">
+                <span class="preset-label">Insert example:</span>
+                <button type="button" class="btn-chip" data-preset="decimal">Decimal amount</button>
+                <button type="button" class="btn-chip" data-preset="receipt">Receipt &gt; 40 chars</button>
+                <button type="button" class="btn-chip" data-preset="currency">Lowercase INR</button>
+                <button type="button" class="btn-chip" data-preset="valid">Valid order</button>
+                <button type="button" class="btn-chip chip-highlight" data-preset="capture-usd">Capture with USD</button>
+              </div>
+
+              <div class="form-group">
+                <div class="label-row">
+                  <label for="pf-json-editor">Request Payload (JSON)</label>
+                  <button type="button" class="btn-text-action" id="btn-format-json">Format JSON</button>
+                </div>
+                <textarea id="pf-json-editor" class="console-textarea raw-editor" rows="9" spellcheck="false" placeholder='{&#10;  "amount": 50000,&#10;  "currency": "INR",&#10;  "receipt": "rcpt_1001"&#10;}'></textarea>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="btn-validate">
+                  <span>Run pre-flight check</span>
+                </button>
+              </div>
+            </form>
+
+            <div class="result-box" id="pf-result">
+              <div class="result-placeholder">
+                <span>Enter a JSON payload or insert an example to execute a pre-flight check.</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Column 2: AI Error Translator -->
+          <article class="console-card card-span-1">
+            <div class="card-header">
+              <div class="card-title-group">
+                <span class="card-tag tag-indigo">AI Error Translator</span>
+                <h2>Gateway Error Reasoning</h2>
+              </div>
+              <span class="latency-badge" id="ai-latency">Live API / Offline</span>
+            </div>
+            <p class="card-desc">Translates cryptic payment gateway errors into technical root causes and code diffs using Gemini 2.5 Flash function calling.</p>
+
+            <div class="form-group">
+              <label for="error-scenario-select">Insert example error</label>
+              <select id="error-scenario-select" class="console-select">
+                <option value="">-- Select an example error to populate --</option>
+                <option value="currency_mismatch">Currency mismatch on capture (INR order vs USD capture)</option>
+                <option value="already_captured">Payment already captured (Auto-capture conflict)</option>
+                <option value="duplicate_receipt">Duplicate receipt ID (Idempotency collision)</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+              <label for="ai-raw-error">Gateway Error Payload or Message</label>
+              <textarea id="ai-raw-error" class="console-textarea raw-editor" rows="6" spellcheck="false" placeholder="Paste gateway error payload or string..."></textarea>
+            </div>
+
+            <div class="form-actions" style="margin-top: 12px;">
+              <button type="button" class="btn btn-primary" id="btn-diagnose">
+                <span id="diagnose-spinner" class="spinner-inline hidden"></span>
+                <span id="diagnose-btn-text">Translate error</span>
+              </button>
+              <span class="stopwatch-text hidden" id="ai-stopwatch">Elapsed: 0.0s</span>
+            </div>
+
+            <div class="result-box" id="ai-result" style="margin-top: 14px;">
+              <div class="result-placeholder">
+                <span>Paste an error or select an example and click "Translate error" to query the AI engine.</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Full Row: Dual-Process Webhook Simulator -->
+          <article class="console-card card-span-2">
+            <div class="card-header">
+              <div class="card-title-group">
+                <span class="card-tag tag-blue">Agentic Webhooks</span>
+                <h2>Dual-Process Webhook Simulation</h2>
+              </div>
+              <button class="btn btn-primary" id="btn-simulate-webhooks">
+                <span id="webhook-spinner" class="spinner-inline hidden"></span>
+                <span>Dispatch webhook lifecycle</span>
+              </button>
+            </div>
+            <p class="card-desc">Simulate authentic multi-step lifecycle (<code>payment.authorized</code> → <code>order.paid</code> → <code>payment.captured</code>). Outbound cryptographic signing transmits to the specified receiver endpoint for HMAC verification.</p>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+              <label for="webhook-target-url">Target Endpoint URL</label>
+              <div class="input-with-hint">
+                <input type="url" id="webhook-target-url" class="console-input" value="http://localhost:3000/api/playground/mock-receiver" placeholder="http://localhost:3000/api/playground/mock-receiver">
+                <span class="input-hint">Default: bundled mock receiver (:3000/api/playground/mock-receiver)</span>
+              </div>
+            </div>
+
+            <div class="dual-terminal-grid">
+              <!-- Outbound Agent Panel -->
+              <div class="terminal-panel">
+                <div class="terminal-panel-header">
+                  <span class="panel-tag tag-agent">Process 1: Outbound Dispatch Agent</span>
+                  <span class="panel-meta">HMAC-SHA256 Signer</span>
+                </div>
+                <div class="log-viewport" id="outbound-log">
+                  <div class="log-line text-muted">[System] Ready to dispatch lifecycle events.</div>
+                </div>
+              </div>
+
+              <!-- Inbound Merchant Server Panel -->
+              <div class="terminal-panel">
+                <div class="terminal-panel-header">
+                  <span class="panel-tag tag-merchant">Process 2: Inbound Merchant Server</span>
+                  <span class="panel-meta">Receiver Endpoint</span>
+                </div>
+                <div class="log-viewport" id="inbound-log">
+                  <div class="log-line text-muted">[System] Receiver listener online. Awaiting cryptographically signed payloads.</div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- TAB 2: GUIDED TOUR (AUTOMATED SCRIPTED SEQUENCE)                  -->
+      <!-- ================================================================= -->
+      <section id="tab-guided-tour" class="view-panel" role="tabpanel">
+        <div class="console-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <span class="card-tag tag-indigo">Automated Walkthrough</span>
+              <h2>Guided Integration Tour (60-Second Sequence)</h2>
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-primary" id="btn-run-tour">
+                <span>Start Guided Tour</span>
+              </button>
+              <button class="btn btn-secondary" id="btn-clear-tour">Clear Terminal</button>
+            </div>
+          </div>
+          <p class="card-desc">For reviewers seeking a one-click automated walkthrough of all three behaviors running consecutively.</p>
+
+          <div class="terminal-shell">
+            <div class="terminal-shell-header">
+              <span class="terminal-shell-title">gateway-ai-walkthrough :: bash (streaming output)</span>
+              <span class="pill pill-emerald" id="tour-status-pill">Ready</span>
+            </div>
+            <div id="guided-terminal-container" class="guided-terminal-viewport"></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <span>GateWay-AI · Payment Integration Console</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>

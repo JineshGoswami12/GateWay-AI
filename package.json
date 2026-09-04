@@ -1,0 +1,39 @@
+{
+  "name": "gateway-ai",
+  "version": "1.0.0",
+  "description": "AI-powered local developer tool & SDK wrapper for payment gateway integrations",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "gateway-ai": "./bin/gateway-ai.js"
+  },
+  "scripts": {
+    "start": "node bin/gateway-ai.js",
+    "demo": "node demo/run-demo.js",
+    "web": "node web/server.js",
+    "test": "node tests/test-suite.js"
+  },
+  "keywords": [
+    "razorpay",
+    "payment-gateway",
+    "ai",
+    "gemini",
+    "developer-tools",
+    "agentic-commerce",
+    "webhooks"
+  ],
+  "author": "GateWay-AI Team",
+  "license": "MIT",
+  "dependencies": {
+    "@google/genai": "^2.21.0",
+    "better-sqlite3": "^13.0.3",
+    "boxen": "^7.1.1",
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ora": "^8.0.1",
+    "ws": "^8.21.3"
+  }
+}
