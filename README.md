@@ -1,203 +1,150 @@
-# ⚡ GateWay-AI
+# GateWay-AI
 
-**Autonomous Local Developer Agent & Drop-in SDK Companion for Payment Integrations**  
-*Razorpay AI Buildathon — Open Track (Agentic Commerce)*
+Autonomous local developer agent and drop-in SDK wrapper for payment integrations, built for the Razorpay AI Buildathon (Open Track — Agentic Commerce).
 
-[![Node.js](https://img.shields.io/badge/Node.js-v22+-green.svg)](https://nodejs.org)
-[![Gemini](https://img.shields.io/badge/AI%20Engine-Gemini%202.5%20Flash-purple.svg)](https://ai.google.dev)
-[![Buildathon](https://img.shields.io/badge/Track-Agentic%20Commerce-blue.svg)](https://razorpay.com)
-[![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
+## The Problem
 
----
+Developers integrating payment gateways lose real engineering time to two recurring, well-documented failure modes:
 
-## 🌐 Live Hosted Web Console (For Judges & Reviewers)
+1. Currency subunit mistakes. Razorpay, like most payment gateways, requires amounts in the smallest currency unit — paise, not rupees. This is a documented, recurring bug, not a hypothetical: real incidents on Razorpay's own issue tracker show a ₹1187 charge silently becoming ₹11.87 because of exactly this confusion.
+2. Cryptic gateway errors and manual webhook testing. Opaque error codes such as `BAD_REQUEST_ERROR` or `GATEWAY_ERROR` with no clear resolution path, and manually triggering test webhooks one at a time from a dashboard to verify handler logic.
 
-> [!TIP]
-> **Interact with the live developer console directly in your browser without installing anything:**  
-> 🔗 **Public Console**: `https://gateway-ai-demo.onrender.com` *(placeholder — deploy via Render)*  
-> 📊 **Admin Telemetry View**: `https://gateway-ai-demo.onrender.com/admin`  
-> - Kept off the main navigation to avoid cluttering the reviewer flow, not a security boundary. Passcode configured via `process.env.ADMIN_PASSWORD` (demo default: `gateway-admin-2026`).
-> 
-> *⚠️ Note on Free-Tier Hosting & Persistence:*  
-> - Free-tier instances (Render) spin down when idle; initial cold boot takes ~30–60 seconds.  
-> - Because free-tier containers have ephemeral disks, the SQLite database (`.gateway-ai/gateway.db`) auto-seeds with realistic developer history on boot so you never face a blank slate.  
-> - Persistent disks are fully supported via `DB_PATH=/var/data/gateway.db` for production deployments.
+## The Solution
 
-The web console is structured into two purpose-built environments:
-1. **Public Developer Console (`/`)**:
-   - **Interactive Playground**: Open-ended developer testing with a free-form raw JSON editor for local pre-flight checks, open-ended gateway error translation via Gemini 2.5 Flash function calling, self-improving rule loop proposals, and dual-process webhook lifecycle simulation with configurable target endpoints.
-   - **Guided Tour Mode**: An automated 60-second end-to-end integration walkthrough streaming live into an xterm.js terminal.
-2. **Admin Telemetry View (`/admin`)**:
-   - Kept off the main navigation to avoid cluttering the reviewer flow, not a security boundary (passcode configured via `ADMIN_PASSWORD` for reviewer convenience).
-   - Live aggregate telemetry: Total validations, local block rate %, AI error diagnoses, and active rules (built-in + AI-learned).
-   - Relational SQLite audit trail: Structured tables for validation logs, AI reasoning diagnoses, webhook deliveries, and rules engine state with a protected type-to-confirm clear action.
+GateWay-AI is a local developer tool and drop-in SDK wrapper that runs alongside a backend during development. It is not a passive dashboard — it intercepts outbound calls, diagnoses failures using Gemini 2.5 Flash, and fires signed webhooks to a local server, learning from what it diagnoses along the way.
 
----
+## Architecture
 
-## 💡 The Problem
+Developer Application
+(Express / Next.js / Node.js backend using import { GateWayAI })
+|
+| (1) Outbound API call, e.g. orders.create
+v
+GateWay-AI SDK Wrapper
+|
+v
 
-Developers integrating payment gateways spend excessive engineering hours on two major friction points:
-1. **Cryptic Gateway Errors**: Deciphering obscure API error codes with vague descriptions (`BAD_REQUEST_ERROR`, `GATEWAY_ERROR`), hunting through external documentation, and guessing what payload field was malformed.
-2. **Manual Webhook Testing**: Switching tabs to a cloud dashboard to manually trigger mock webhook events one by one to verify their webhook listener logic.
+Pre-Flight Validation Engine
+Inspects the outbound request against an extensible rule set
+Blocks invalid calls locally (paise decimals, receipt length, etc.)
+Returns an actionable code diff; zero network quota wasted
+|
+| (if passed)
+v
+Mock Payment Gateway & State Engine
+Simulates order creation, payment capture, and refund states
+Persists state to SQLite (.gateway-ai/gateway.db)
+|
+|-- on gateway error --------------> 2. AI Error Translator
+| - Sends the error to Gemini 2.5 Flash
+| via structured tool calling
+| - Returns explanation, root cause,
+| code fix, and a proposed pre-flight
+| rule when the failure is preventable
+|
+|-- on payment success ------------> 3. Agentic Webhook Simulator
+- Autonomously builds and signs the
+event sequence (authorized -> paid
+-> captured)
+- Delivers via native fetch to the
+developer's local endpoint
 
-## 🚀 The Solution: GateWay-AI
 
-**GateWay-AI** is a local developer tool and drop-in SDK wrapper that runs alongside your backend during local development. It is **not a passive dashboard**—it is an autonomous agent that intercepts outbound calls, diagnoses errors using **Gemini 2.5 Flash**, and fires multi-stage HMAC-signed webhooks to your local server.
 
-```
-+-----------------------------------------------------------------------------------+
-|                            Developer Application                                  |
-|  (e.g., Express / Next.js / Node.js backend using import { GateWayAI })           |
-+-----------------------------------------------------------------------------------+
-                                   |
-                  (1) Outbound API Call (e.g. orders.create)
-                                   v
-+-----------------------------------------------------------------------------------+
-|                            GateWay-AI SDK Wrapper                                 |
-|                                                                                   |
-|   +---------------------------------------------------------------------------+   |
-|   | 1. Pre-Flight Validation Engine                                           |   |
-|   | - Inspects outbound request against extensible rules                      |   |
-|   | - Blocks invalid calls locally (paise decimals, receipt length, etc.)      |   |
-|   | - Renders actionable terminal diff; zero network quota wasted             |   |
-|   +---------------------------------------------------------------------------+   |
-|                                   | (If Passed)                                   |
-|                                   v                                               |
-|   +---------------------------------------------------------------------------+   |
-|   | Mock Payment Gateway & State Engine                                       |   |
-|   | - Simulates Razorpay order creation, payment capture, refund states       |   |
-|   | - Persists state to SQLite database (.gateway-ai/gateway.db)              |   |
-|   +---------------------------------------------------------------------------+   |
-|            |                                              |                       |
-|   (On Gateway Error)                               (On Payment Success)           |
-|            v                                              v                       |
-|   +----------------------------------+     +----------------------------------+   |
-|   | 2. AI Error Translator           |     | 3. Agentic Webhook Simulator     |   |
-|   | - Intercepts gateway error       |     | - Autonomously constructs event  |   |
-|   | - Calls Gemini 2.5 Flash via     |     |   sequence (auth -> paid -> cap) |   |
-|   |   @google/genai tool-calling     |     | - Signs payload with HMAC-SHA256 |   |
-|   | - Structured schema:             |     |   header: X-Razorpay-Signature   |   |
-|   |   { explanation, rootCause,      |     | - Dispatches via native fetch    |   |
-|   |     codeFix, suggestedAction,    |     |   to local webhook endpoint      |   |
-|   |     proposedRule }               |     | - Live delivery & latency logs   |   |
-|   | - Proposes pre-flight rules into |     +----------------------------------+   |
-|   |   the self-improving loop        |                                            |
-|   +----------------------------------+                                            |
-+-----------------------------------------------------------------------------------+
-```
-
----
-
-## 🎯 Core Agentic Behaviors
+## Core Behaviors
 
 ### 1. Pre-Flight Validation Rules Engine
-Before an outbound API request ever reaches the network or mock gateway, the wrapper inspects it against a rule engine covering realistic payment integration mistakes:
-- **Currency Subunits**: Detects floating-point decimals (`500.50`) and instructs conversion to integer paise (`50050`).
-- **Minimum Thresholds**: Enforces ₹1.00 (100 paise) minimum transaction size.
-- **ISO-4217 Currency**: Enforces uppercase standard currency codes (rejects `"inr"` or `"₹"`).
-- **Receipt Length**: Catches strings exceeding Razorpay's 40-character limit.
-- **Notes Constraints**: Limits custom notes to 15 key-value pairs (keys <= 30 chars, values <= 256 chars).
-- **Extensible**: Add custom team rules with `gateway.registerRule(...)`.
 
-### 2. AI Error Translator & Self-Improving Rule Loop (Gemini 2.5 Flash)
-When a request fails against the gateway, GateWay-AI intercepts the error and invokes **Gemini 2.5 Flash** using structured tool calling (`report_error_diagnosis`).
+Before an outbound request reaches the network or mock gateway, it is checked against a rule engine covering realistic integration mistakes:
 
-> [!NOTE]
-> **Documented Error Schema Accuracy**: All mock errors, catalog scenarios, and AI translation inputs adhere strictly to [Razorpay's Documented Error Response Schema](https://razorpay.com/docs/payments/payment-gateway/rainy-day/errors/error-codes):
-> ```json
-> {
->   "error": {
->     "code": "BAD_REQUEST_ERROR",
->     "description": "Payment currency (USD) does not match the original order currency (INR)",
->     "field": "currency",
->     "source": "business",
->     "step": "payment_capture",
->     "reason": "currency_mismatch",
->     "metadata": { "payment_id": "pay_...", "order_id": "order_..." }
->   }
-> }
-> ```
-> Error taxonomies (`source: customer|business|gateway|bank|network`, `step: payment_capture|order_creation|payment_authentication`, and specific reason codes) match official gateway specifications rather than invented formats.
+- Currency subunits: detects decimals such as 500.50 and requires integer paise (50050)
+- Minimum thresholds: enforces the ₹1.00 (100 subunit) minimum
+- ISO-4217 currency format: rejects lowercase or malformed currency codes
+- Receipt length: enforces Razorpay's 40-character limit
+- Notes constraints: limits key-value pair count and length
+- Extensible: new rules can be registered manually via `gateway.registerRule(...)`, or proposed automatically (see below)
 
-The model returns a strictly typed diagnosis:
-- **Plain-English Explanation**: What went wrong in clear terms.
-- **Root Cause**: The technical reason behind the gateway rejection.
-- **Concrete Code Fix**: A colorized diff showing actionable code changes.
-- **Suggested Next Step & Reference Docs**: Direct guidance on resolution.
-- **Self-Improving Pre-Flight Rule Proposal**: If the failure represents a repeatable schema error, the AI proposes a new pre-flight rule. When approved by the developer, it is compiled into the local validation engine and persisted to SQLite—preventing future identical mistakes in <1ms without contacting the gateway.
+### 2. AI Error Translator and Self-Improving Rule Loop
 
-*(Includes an automatic local fallback reasoning engine for 100% reliable offline testing).*
+When a request fails, GateWay-AI sends the error to Gemini 2.5 Flash using structured tool calling (`report_error_diagnosis`). All error scenarios follow Razorpay's actual documented error response schema (https://razorpay.com/docs/payments/payment-gateway/rainy-day/errors/error-codes), not an invented format:
+
+```json
+{
+  "error": {
+    "code": "BAD_REQUEST_ERROR",
+    "description": "Payment currency (USD) does not match the original order currency (INR)",
+    "field": "currency",
+    "source": "business",
+    "step": "payment_capture",
+    "reason": "currency_mismatch",
+    "metadata": { "payment_id": "pay_...", "order_id": "order_..." }
+  }
+}
+```
+
+The model returns a structured diagnosis: a plain-English explanation, the technical root cause, a concrete code fix, a suggested next step with reference documentation, and, when the failure represents a repeatable pattern, a proposed pre-flight rule.
+
+This is what makes the system self-improving rather than purely reactive. When a proposed rule is approved, it is compiled into the local validation engine and persisted to SQLite. The identical mistake is then caught locally, in under a millisecond, with no further AI calls required.
+
+An offline local-reasoning fallback is included, so the full loop works without a `GEMINI_API_KEY`.
 
 ### 3. Agentic Webhook Simulator
-When a payment succeeds, the agent autonomously constructs and dispatches the multi-step webhook lifecycle to your server:
-1. `payment.authorized` (Bank authorization)
-2. `order.paid` (Order marked paid)
-3. `payment.captured` (Funds captured)
-- **Authentic Signatures**: Computes real HMAC-SHA256 signatures in `X-Razorpay-Signature` using your configured secret.
-- **Native Delivery**: Dispatches via native Node.js `fetch` to your designated webhook endpoint.
-- **Dual UI Panels**: Separate Outbound Dispatch Agent and Inbound Merchant Receiver status.
 
----
+On a successful mock payment, the agent autonomously constructs and dispatches the full webhook lifecycle to the developer's server: `payment.authorized`, then `order.paid`, then `payment.captured`. Each event is signed with a real HMAC-SHA256 `X-Razorpay-Signature` header and delivered via native `fetch`, without manual dashboard triggering.
 
-## 💻 Local Developer Setup & CLI Demo
+## Local Setup
 
-### 1. Clone and Install
 ```bash
 git clone https://github.com/your-username/GateWay-AI.git
 cd GateWay-AI
 npm install
 ```
 
-### 2. Configure Environment (Optional)
+Optional environment configuration:
+
 ```bash
 cp .env.example .env
 ```
-Add your Gemini API key (or leave empty to use the built-in offline engine):
-```env
+
 GEMINI_API_KEY=your_gemini_api_key_here
-ADMIN_PASSWORD=gateway-admin-2026
+ADMIN_PASSWORD=choose_your_own_password
 GATEWAY_WEBHOOK_URL=http://localhost:3000/webhook
 GATEWAY_WEBHOOK_SECRET=gateway_ai_secret_xyz123
+
+
+`GEMINI_API_KEY` is optional. The offline reasoning engine works without it.
+
+Run the interactive web console:
+
+```bash
+npm run web
 ```
 
-### 3. Run the Live 60-Second Demo
+- Console: http://localhost:3000
+- Admin telemetry view: http://localhost:3000/admin (kept off the main navigation for a cleaner reviewer flow, not a security boundary; password set via `ADMIN_PASSWORD`)
+
+Run the scripted demo:
+
 ```bash
 npm run demo
 ```
-Runs through all 3 agentic scenarios automatically in non-interactive mode.
 
-### 4. Run Automated Tests
+Run the automated test suite:
+
 ```bash
 npm test
 ```
 
-### 5. CLI Utility Commands
+CLI utilities:
+
 ```bash
-# View all active pre-flight rules
 node bin/gateway-ai.js rules
-
-# Inspect local history of orders, webhooks, and AI errors
 node bin/gateway-ai.js logs
-
-# Start a local webhook listener to inspect incoming webhooks
 node bin/gateway-ai.js listen --port 3000
-
-# Clear local state (.gateway-ai/)
 node bin/gateway-ai.js clear
 ```
 
-### 6. Run Web Console Locally
-```bash
-npm run web
-```
-- Public Console: `http://localhost:3000`
-- Admin Telemetry View: `http://localhost:3000/admin` (Passcode configured via `ADMIN_PASSWORD` in `.env`)
-
----
-
-## 🛠 Developer SDK Usage
-
-### Drop-in Razorpay Replacement
+## SDK Usage
 
 ```javascript
 import { GateWayAI } from 'gateway-ai';
@@ -209,45 +156,37 @@ const gateway = new GateWayAI({
   webhook_url: 'http://localhost:3000/webhook'
 });
 
-// 1. Create an order (Pre-flight automatically checks parameters)
 const order = await gateway.orders.create({
-  amount: 50000, // 50000 paise = ₹500
+  amount: 50000, // paise, equivalent to ₹500
   currency: 'INR',
   receipt: 'rcpt_order_101'
 });
 
-// 2. Simulate customer payment (Autonomous agent fires signed webhooks)
 await gateway.simulatePaymentSuccess(order.id, {
   method: 'upi',
   vpa: 'customer@okhdfcbank'
 });
 ```
 
-### In Your Merchant Webhook Handler
-
 ```javascript
 app.post('/webhook', (req, res) => {
   const signature = req.headers['x-razorpay-signature'];
-  const isValid = gateway.verifyWebhookSignature(req.body, signature);
-
-  if (!isValid) return res.status(400).send('Invalid signature');
-
+  if (!gateway.verifyWebhookSignature(req.body, signature)) {
+    return res.status(400).send('Invalid signature');
+  }
   console.log(`Received verified event: ${req.body.event}`);
   res.status(200).send('OK');
 });
 ```
 
----
+## Technical Notes
 
-## 🔒 Technical Constraints & Compliance
-- **No Network Proxy / TLS Interception**: Runs purely as a function wrapper imported in userland code.
-- **Zero Heavy Infrastructure**: Built with SQLite (`better-sqlite3`) for lightweight, reliable relational persistence.
-- **Pure Localhost Operation**: Runs entirely offline/local, with optional external call to Gemini API for live LLM reasoning.
-- **Production-Grade Signatures**: HMAC-SHA256 generation ensures developer webhook handling code is production-ready.
+- SDK wrapper, not a network proxy. Runs as a function wrapper in userland code; no TLS interception or certificate management required.
+- Real relational persistence via SQLite (`better-sqlite3`), with origin tracking that distinguishes built-in rules from AI-learned ones.
+- Local-first. Runs entirely offline, with an optional live call to Gemini for LLM reasoning.
+- Production-shaped signatures. Real HMAC-SHA256 generation, so webhook handler code written against this is genuinely production-compatible.
 
----
+## Built for Razorpay AI Buildathon 2026
 
-## 🏆 Built for Razorpay AI Buildathon 2026
-- **Track**: Open Track (Agentic Commerce)
-- **Engine**: Gemini 2.5 Flash (`@google/genai`)
-- **Focus**: Developer Experience (DX) & Autonomous Agentic Workflow
+Track: Open Track (Agentic Commerce)
+AI Engine: Gemini 2.5 Flash (`@google/genai`)

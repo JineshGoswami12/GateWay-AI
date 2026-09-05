@@ -490,9 +490,9 @@ app.get('/api/playground/merchant-url', async (req, res) => {
 // Admin Telemetry View (/admin)
 // Kept off main navigation to avoid cluttering reviewer flow; not a security boundary.
 // -----------------------------------------------------------------------------
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-if (!ADMIN_PASSWORD) {
-  console.warn('[SECURITY WARNING] ADMIN_PASSWORD environment variable is not configured. Admin telemetry access will be disabled until set.');
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'gateway-admin-2026';
+if (!process.env.ADMIN_PASSWORD) {
+  console.log('[INFO] ADMIN_PASSWORD environment variable not set; defaulting to demo passcode (gateway-admin-2026).');
 }
 const validAdminTokens = new Set();
 
@@ -640,9 +640,9 @@ server.listen(PORT, () => {
   console.log(`\nGateWay-AI Developer Console active on http://localhost:${PORT}`);
   console.log(`AI Engine: ${process.env.GEMINI_API_KEY ? 'Gemini 2.5 Flash' : 'Built-in Offline Fallback'}`);
   console.log(`Persistence: SQLite (.gateway-ai/gateway.db)`);
-  if (!ADMIN_PASSWORD) {
-    console.warn(`Admin Route: UNCONFIGURED (Set ADMIN_PASSWORD in environment to enable admin login)`);
-  } else {
+  if (process.env.ADMIN_PASSWORD) {
     console.log(`Admin Route: Protected via ADMIN_PASSWORD environment variable`);
+  } else {
+    console.log(`Admin Route: Protected via default passcode ('gateway-admin-2026')`);
   }
 });
